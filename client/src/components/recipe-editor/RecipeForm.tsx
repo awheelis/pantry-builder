@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { Recipe, RecipeIngredient, Ingredient } from '../../types';
+import type { Recipe, RecipeIngredient, Ingredient, IngredientCategory } from '../../types';
 import * as recipesApi from '../../api/recipes';
 import * as ingredientsApi from '../../api/ingredients';
 import RatingStars from '../common/RatingStars';
+
+const CATEGORIES: IngredientCategory[] = ['meat', 'produce', 'dairy', 'dry', 'canned', 'frozen', 'other'];
+const CREATE_SENTINEL = '__create__';
 
 interface Props {
   recipe?: Recipe & { ingredients?: RecipeIngredient[] };
@@ -72,6 +75,27 @@ export default function RecipeForm({ recipe, onSave, onClose }: Props) {
   const [newAmount, setNewAmount] = useState('');
   const [newUnit, setNewUnit] = useState('');
 
+  // Inline ingredient creation
+  const [creating, setCreating] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createCategory, setCreateCategory] = useState<IngredientCategory>('other');
+  const [createUnit, setCreateUnit] = useState('');
+  const [createError, setCreateError] = useState('');
+
+  async function handleCreateIngredient() {
+    if (!createName.trim() || !createUnit.trim()) { setCreateError('Name and unit are required'); return; }
+    setCreateError('');
+    const created = await ingredientsApi.createIngredient({ name: createName.trim(), category: createCategory, unit: createUnit.trim(), suggested_purchase_location: null });
+    const updated = await ingredientsApi.getIngredients();
+    setAllIngredients(updated);
+    setNewIngId(String(created.id));
+    setNewUnit(created.unit);
+    setCreating(false);
+    setCreateName('');
+    setCreateCategory('other');
+    setCreateUnit('');
+  }
+
   async function handleAddIngredient() {
     if (!newIngId || !newAmount || !newUnit.trim()) return;
     if (recipe?.id) {
@@ -138,16 +162,49 @@ export default function RecipeForm({ recipe, onSave, onClose }: Props) {
             )}
           </div>
         ))}
+        {creating && (
+          <div style={{ background: 'var(--bg-subtle, #f5f5f5)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', marginTop: 8 }}>
+            <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8, color: 'var(--text-muted)' }}>NEW INGREDIENT</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div className="field">
+                <label>Name</label>
+                <input autoFocus value={createName} onChange={e => setCreateName(e.target.value)} placeholder="e.g. Olive oil" />
+              </div>
+              <div className="field">
+                <label>Unit</label>
+                <input value={createUnit} onChange={e => setCreateUnit(e.target.value)} placeholder="cups, oz, count…" />
+              </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Category</label>
+                <select value={createCategory} onChange={e => setCreateCategory(e.target.value as IngredientCategory)}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            {createError && <p className="error-msg">{createError}</p>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn-primary" onClick={handleCreateIngredient} type="button">Create & select</button>
+              <button className="btn-secondary" onClick={() => { setCreating(false); setNewIngId(''); setCreateError(''); }} type="button">Cancel</button>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
           <div style={{ flex: 2 }}>
             <label>Ingredient</label>
             <select value={newIngId} onChange={e => {
-              setNewIngId(e.target.value);
-              const ing = allIngredients.find(i => i.id === Number(e.target.value));
-              if (ing && !newUnit) setNewUnit(ing.unit);
+              const val = e.target.value;
+              if (val === CREATE_SENTINEL) {
+                setCreating(true);
+                setNewIngId('');
+              } else {
+                setNewIngId(val);
+                const ing = allIngredients.find(i => i.id === Number(val));
+                if (ing) setNewUnit(ing.unit);
+              }
             }}>
               <option value="">Select…</option>
               {allIngredients.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+              <option value={CREATE_SENTINEL}>＋ Create new ingredient…</option>
             </select>
           </div>
           <div style={{ flex: 1 }}>
