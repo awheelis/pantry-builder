@@ -27,6 +27,7 @@ export default function PanelStaging() {
     fetchStaged();
   }, []);
 
+  const [mobilePanel, setMobilePanel] = useState<'archive' | 'staging'>('archive');
   const stagedRecipeIds = new Set(staged.map(s => s.recipe_id));
   const filtered = recipes.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -50,9 +51,17 @@ export default function PanelStaging() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 1100, margin: '0 auto' }}>
+    <div className="plan-grid">
+      {/* Mobile toggle */}
+      <div className="plan-toggle" style={{ gridColumn: '1 / -1' }}>
+        <button className={mobilePanel === 'archive' ? 'active' : ''} onClick={() => setMobilePanel('archive')}>Archive</button>
+        <button className={mobilePanel === 'staging' ? 'active' : ''} onClick={() => setMobilePanel('staging')}>
+          Staging{staged.length > 0 ? ` (${staged.length})` : ''}
+        </button>
+      </div>
+
       {/* Left: Archive */}
-      <div>
+      <div className={mobilePanel !== 'archive' ? 'plan-panel--hidden' : ''}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700 }}>Recipe Archive</h2>
           <button className="btn-primary" onClick={() => { setEditRecipe(null); setShowForm(true); }}>+ New Recipe</button>
@@ -86,7 +95,7 @@ export default function PanelStaging() {
       </div>
 
       {/* Right: Staging area */}
-      <div>
+      <div className={mobilePanel !== 'staging' ? 'plan-panel--hidden' : ''}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700 }}>Staging Area</h2>
           {staged.length > 0 && (

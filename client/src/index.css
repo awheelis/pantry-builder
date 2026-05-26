@@ -158,3 +158,60 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
 }
 
 .error-msg { color: var(--danger); font-size: 13px; margin-top: 4px; }
+
+/* ── Layout ─────────────────────────────────────────── */
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  height: 52px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow);
+}
+
+.app-main { flex: 1; padding: 24px; }
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Mobile toggle bar — hidden on desktop */
+.plan-toggle {
+  display: none;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.plan-toggle button {
+  flex: 1;
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 9px 0;
+}
+.plan-toggle button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .app-header { padding: 0 12px; gap: 12px; }
+  .app-header nav button { padding: 6px 10px; font-size: 13px; }
+  .app-main { padding: 12px; }
+
+  .plan-grid { display: block; }
+  .plan-toggle { display: flex; }
+  .plan-panel--hidden { display: none; }
+}
