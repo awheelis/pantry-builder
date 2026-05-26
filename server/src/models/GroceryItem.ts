@@ -1,67 +1,62 @@
-import db from '../db/connection';
+import pool from '../db/connection';
 
-interface AggregatedIngredient {
-  ingredient_id: number;
-  total_amount: number;
-  unit: string;
-}
-
-export function rebuildGroceryList() {
-  const staged = db.prepare('SELECT id, recipe_id, scale_factor FROM staged_recipes').all() as {
-    id: number;
-    recipe_id: number;
-    scale_factor: number;
-  }[];
+export async function rebuildGroceryList() {
+  const { rows: staged } = await pool.query(
+    'SELECT id, recipe_id, scale_factor FROM staged_recipes'
+  );
 
   const totals = new Map<number, { total_amount: number; unit: string }>();
 
   for (const sr of staged) {
-    const items = db
-      .prepare('SELECT ingredient_id, amount, unit FROM recipe_ingredients WHERE recipe_id = ?')
-      .all(sr.recipe_id) as { ingredient_id: number; amount: number; unit: string }[];
-
+    const { rows: items } = await pool.query(
+      'SELECT ingredient_id, amount, unit FROM recipe_ingredients WHERE recipe_id = $1',
+      [sr.recipe_id]
+    );
     for (const item of items) {
       const existing = totals.get(item.ingredient_id);
       if (existing && existing.unit === item.unit) {
-        existing.total_amount += item.amount * sr.scale_factor;
+        existing.total_amount += Number(item.amount) * Number(sr.scale_factor);
       } else if (!existing) {
         totals.set(item.ingredient_id, {
-          total_amount: item.amount * sr.scale_factor,
+          total_amount: Number(item.amount) * Number(sr.scale_factor),
           unit: item.unit,
         });
       }
-      // mismatched units: skip aggregation (keep first unit encountered)
     }
   }
 
-  const upsert = db.prepare(`
-    INSERT INTO grocery_items (ingredient_id, total_amount, unit, is_purchased)
-    VALUES (@ingredient_id, @total_amount, @unit, 0)
-    ON CONFLICT(ingredient_id) DO UPDATE SET
-      total_amount = excluded.total_amount,
-      unit = excluded.unit
-  `);
-
-  const remove = db.prepare(`
-    DELETE FROM grocery_items WHERE ingredient_id NOT IN (${
-      totals.size > 0 ? Array.from(totals.keys()).join(',') : '-1'
-    })
-  `);
-
-  const rebuild = db.transaction(() => {
-    for (const [ingredient_id, { total_amount, unit }] of totals) {
-      upsert.run({ ingredient_id, total_amount, unit });
-    }
-    remove.run();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
     if (totals.size === 0) {
-      db.prepare('DELETE FROM grocery_items').run();
+      await client.query('DELETE FROM grocery_items');
+    } else {
+      for (const [ingredient_id, { total_amount, unit }] of totals) {
+        await client.query(`
+          INSERT INTO grocery_items (ingredient_id, total_amount, unit, is_purchased)
+          VALUES ($1, $2, $3, 0)
+          ON CONFLICT (ingredient_id) DO UPDATE SET
+            total_amount = EXCLUDED.total_amount,
+            unit = EXCLUDED.unit
+        `, [ingredient_id, total_amount, unit]);
+      }
+      await client.query(
+        'DELETE FROM grocery_items WHERE NOT (ingredient_id = ANY($1))',
+        [Array.from(totals.keys())]
+      );
     }
-  });
-
-  rebuild();
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
-export function getGroceryList(category?: string, store?: string) {
+export async function getGroceryList(category?: string, store?: string) {
+  const params: (string | number)[] = [];
+  let idx = 1;
   let sql = `
     SELECT
       gi.id,
@@ -79,24 +74,19 @@ export function getGroceryList(category?: string, store?: string) {
     LEFT JOIN stores s ON s.id = i.suggested_purchase_location
     WHERE 1=1
   `;
-  const params: (string | number)[] = [];
-
-  if (category) {
-    sql += ' AND i.category = ?';
-    params.push(category);
-  }
-  if (store) {
-    sql += ' AND s.id = ?';
-    params.push(Number(store));
-  }
-
+  if (category) { sql += ` AND i.category = $${idx++}`; params.push(category); }
+  if (store)    { sql += ` AND s.id = $${idx++}`; params.push(Number(store)); }
   sql += ' ORDER BY gi.is_purchased ASC, i.name ASC';
-  return db.prepare(sql).all(...params);
+  const { rows } = await pool.query(sql, params);
+  return rows;
 }
 
-export function togglePurchased(id: number) {
-  db.prepare(`
-    UPDATE grocery_items SET is_purchased = CASE WHEN is_purchased = 1 THEN 0 ELSE 1 END WHERE id = ?
-  `).run(id);
-  return db.prepare('SELECT * FROM grocery_items WHERE id = ?').get(id);
+export async function togglePurchased(id: number) {
+  const { rows } = await pool.query(`
+    UPDATE grocery_items
+    SET is_purchased = CASE WHEN is_purchased = 1 THEN 0 ELSE 1 END
+    WHERE id = $1
+    RETURNING *
+  `, [id]);
+  return rows[0] ?? null;
 }

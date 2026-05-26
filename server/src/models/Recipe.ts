@@ -1,46 +1,48 @@
-import db from '../db/connection';
+import pool from '../db/connection';
 
-export function listRecipes(q?: string) {
-  let sql = 'SELECT * FROM recipes';
-  const params: string[] = [];
+export async function listRecipes(q?: string) {
   if (q) {
-    sql += ' WHERE name LIKE ?';
-    params.push(`%${q}%`);
+    const { rows } = await pool.query(
+      'SELECT * FROM recipes WHERE name ILIKE $1 ORDER BY name ASC',
+      [`%${q}%`]
+    );
+    return rows;
   }
-  sql += ' ORDER BY name ASC';
-  return db.prepare(sql).all(...params);
+  const { rows } = await pool.query('SELECT * FROM recipes ORDER BY name ASC');
+  return rows;
 }
 
-export function getRecipe(id: number) {
-  return db.prepare('SELECT * FROM recipes WHERE id = ?').get(id);
+export async function getRecipe(id: number) {
+  const { rows } = await pool.query('SELECT * FROM recipes WHERE id = $1', [id]);
+  return rows[0] ?? null;
 }
 
-export function createRecipe(data: {
+export async function createRecipe(data: {
   name: string;
-  description?: string;
+  description?: string | null;
   serving_size: number;
   ease_rating?: number | null;
   deliciousness_rating?: number | null;
 }) {
-  const result = db.prepare(`
-    INSERT INTO recipes (name, description, serving_size, ease_rating, deliciousness_rating)
-    VALUES (@name, @description, @serving_size, @ease_rating, @deliciousness_rating)
-  `).run(data);
-  return db.prepare('SELECT * FROM recipes WHERE id = ?').get(result.lastInsertRowid);
+  const { rows } = await pool.query(
+    `INSERT INTO recipes (name, description, serving_size, ease_rating, deliciousness_rating)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [data.name, data.description ?? null, data.serving_size, data.ease_rating ?? null, data.deliciousness_rating ?? null]
+  );
+  return rows[0];
 }
 
-export function updateRecipe(id: number, data: {
-  name?: string;
-  description?: string;
-  serving_size?: number;
-  ease_rating?: number | null;
-  deliciousness_rating?: number | null;
-}) {
-  const fields = Object.keys(data).map(k => `${k} = @${k}`).join(', ');
-  db.prepare(`UPDATE recipes SET ${fields} WHERE id = @id`).run({ ...data, id });
-  return db.prepare('SELECT * FROM recipes WHERE id = ?').get(id);
+export async function updateRecipe(id: number, data: Record<string, unknown>) {
+  const keys = Object.keys(data);
+  const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+  const values = [...Object.values(data), id];
+  const { rows } = await pool.query(
+    `UPDATE recipes SET ${sets} WHERE id = $${keys.length + 1} RETURNING *`,
+    values
+  );
+  return rows[0];
 }
 
-export function deleteRecipe(id: number) {
-  db.prepare('DELETE FROM recipes WHERE id = ?').run(id);
+export async function deleteRecipe(id: number) {
+  await pool.query('DELETE FROM recipes WHERE id = $1', [id]);
 }

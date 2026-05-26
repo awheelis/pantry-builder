@@ -1,7 +1,7 @@
-import db from '../db/connection';
+import pool from '../db/connection';
 
-export function listRecipeIngredients(recipeId: number) {
-  return db.prepare(`
+export async function listRecipeIngredients(recipeId: number) {
+  const { rows } = await pool.query(`
     SELECT
       ri.*,
       i.name AS ingredient_name,
@@ -11,76 +11,80 @@ export function listRecipeIngredients(recipeId: number) {
     FROM recipe_ingredients ri
     JOIN ingredients i ON i.id = ri.ingredient_id
     LEFT JOIN ingredients orig ON orig.id = ri.original_ingredient_id
-    WHERE ri.recipe_id = ?
+    WHERE ri.recipe_id = $1
     ORDER BY i.name ASC
-  `).all(recipeId);
+  `, [recipeId]);
+  return rows;
 }
 
-export function addRecipeIngredient(recipeId: number, data: {
+export async function addRecipeIngredient(recipeId: number, data: {
   ingredient_id: number;
   amount: number;
   unit: string;
 }) {
-  const result = db.prepare(`
-    INSERT INTO recipe_ingredients (recipe_id, ingredient_id, amount, unit)
-    VALUES (@recipe_id, @ingredient_id, @amount, @unit)
-  `).run({ recipe_id: recipeId, ...data });
-  return db.prepare('SELECT * FROM recipe_ingredients WHERE id = ?').get(result.lastInsertRowid);
+  const { rows } = await pool.query(
+    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, amount, unit)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [recipeId, data.ingredient_id, data.amount, data.unit]
+  );
+  return rows[0];
 }
 
-export function updateRecipeIngredient(id: number, data: {
-  amount?: number;
-  unit?: string;
-}) {
-  const fields = Object.keys(data).map(k => `${k} = @${k}`).join(', ');
-  db.prepare(`UPDATE recipe_ingredients SET ${fields} WHERE id = @id`).run({ ...data, id });
-  return db.prepare('SELECT * FROM recipe_ingredients WHERE id = ?').get(id);
+export async function updateRecipeIngredient(id: number, data: { amount?: number; unit?: string }) {
+  const keys = Object.keys(data);
+  const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+  const values = [...Object.values(data), id];
+  const { rows } = await pool.query(
+    `UPDATE recipe_ingredients SET ${sets} WHERE id = $${keys.length + 1} RETURNING *`,
+    values
+  );
+  return rows[0];
 }
 
-export function removeRecipeIngredient(id: number) {
-  db.prepare('DELETE FROM recipe_ingredients WHERE id = ?').run(id);
+export async function removeRecipeIngredient(id: number) {
+  await pool.query('DELETE FROM recipe_ingredients WHERE id = $1', [id]);
 }
 
-export function substituteIngredient(id: number, newIngredientId: number) {
-  const current = db.prepare('SELECT * FROM recipe_ingredients WHERE id = ?').get(id) as {
-    ingredient_id: number;
-    is_substituted: number;
-    original_ingredient_id: number | null;
-  } | undefined;
+export async function substituteIngredient(id: number, newIngredientId: number) {
+  const { rows: curr } = await pool.query(
+    'SELECT ingredient_id, is_substituted, original_ingredient_id FROM recipe_ingredients WHERE id = $1',
+    [id]
+  );
+  if (!curr[0]) return null;
+  const current = curr[0] as { ingredient_id: number; is_substituted: number; original_ingredient_id: number | null };
+  const originalId = current.is_substituted ? current.original_ingredient_id : current.ingredient_id;
 
-  if (!current) return null;
+  await pool.query(
+    `UPDATE recipe_ingredients
+     SET ingredient_id = $1, is_substituted = 1, original_ingredient_id = $2
+     WHERE id = $3`,
+    [newIngredientId, originalId, id]
+  );
 
-  const originalId = current.is_substituted
-    ? current.original_ingredient_id
-    : current.ingredient_id;
-
-  db.prepare(`
-    UPDATE recipe_ingredients
-    SET ingredient_id = ?, is_substituted = 1, original_ingredient_id = ?
-    WHERE id = ?
-  `).run(newIngredientId, originalId, id);
-
-  return db.prepare(`
+  const { rows } = await pool.query(`
     SELECT ri.*, i.name AS ingredient_name, orig.name AS original_ingredient_name
     FROM recipe_ingredients ri
     JOIN ingredients i ON i.id = ri.ingredient_id
     LEFT JOIN ingredients orig ON orig.id = ri.original_ingredient_id
-    WHERE ri.id = ?
-  `).get(id);
+    WHERE ri.id = $1
+  `, [id]);
+  return rows[0];
 }
 
-export function revertSubstitution(id: number) {
-  const current = db.prepare('SELECT * FROM recipe_ingredients WHERE id = ?').get(id) as {
-    original_ingredient_id: number | null;
-  } | undefined;
+export async function revertSubstitution(id: number) {
+  const { rows: curr } = await pool.query(
+    'SELECT original_ingredient_id FROM recipe_ingredients WHERE id = $1',
+    [id]
+  );
+  if (!curr[0]?.original_ingredient_id) return null;
 
-  if (!current?.original_ingredient_id) return null;
+  await pool.query(
+    `UPDATE recipe_ingredients
+     SET ingredient_id = $1, is_substituted = 0, original_ingredient_id = NULL
+     WHERE id = $2`,
+    [curr[0].original_ingredient_id, id]
+  );
 
-  db.prepare(`
-    UPDATE recipe_ingredients
-    SET ingredient_id = ?, is_substituted = 0, original_ingredient_id = NULL
-    WHERE id = ?
-  `).run(current.original_ingredient_id, id);
-
-  return db.prepare('SELECT * FROM recipe_ingredients WHERE id = ?').get(id);
+  const { rows } = await pool.query('SELECT * FROM recipe_ingredients WHERE id = $1', [id]);
+  return rows[0];
 }
