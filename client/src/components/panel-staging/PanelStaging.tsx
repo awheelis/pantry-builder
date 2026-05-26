@@ -6,6 +6,9 @@ import { useGroceryStore } from '../../store/groceryStore';
 import StagedRecipeCard from './StagedRecipeCard';
 import RecipeForm from '../recipe-editor/RecipeForm';
 import ConfirmDialog from '../common/ConfirmDialog';
+import RatingStars from '../common/RatingStars';
+
+type SortKey = 'name' | 'ease' | 'taste';
 
 export default function PanelStaging() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -28,8 +31,15 @@ export default function PanelStaging() {
   }, []);
 
   const [mobilePanel, setMobilePanel] = useState<'archive' | 'staging'>('archive');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
   const stagedRecipeIds = new Set(staged.map(s => s.recipe_id));
-  const filtered = recipes.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = recipes
+    .filter(r => r.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sortKey === 'name') return a.name.localeCompare(b.name);
+      if (sortKey === 'ease') return (b.ease_rating ?? 0) - (a.ease_rating ?? 0);
+      return (b.deliciousness_rating ?? 0) - (a.deliciousness_rating ?? 0);
+    });
 
   async function handleStage(recipeId: number) {
     await stage(recipeId);
@@ -66,29 +76,44 @@ export default function PanelStaging() {
           <h2 style={{ fontSize: 15, fontWeight: 700 }}>Recipe Archive</h2>
           <button className="btn-primary" onClick={() => { setEditRecipe(null); setShowForm(true); }}>+ New Recipe</button>
         </div>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search recipes…"
-          style={{ marginBottom: 12 }}
-        />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search recipes…"
+            style={{ flex: 1, marginBottom: 0 }}
+          />
+          <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} style={{ flexShrink: 0 }}>
+            <option value="name">A–Z</option>
+            <option value="ease">Ease ★</option>
+            <option value="taste">Taste ★</option>
+          </select>
+        </div>
         {filtered.map(r => (
-          <div key={r.id} className="card" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500 }}>{r.name}</div>
-              {r.description && (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{r.description}</div>
-              )}
+          <div key={r.id} className="card" style={{ marginBottom: 8, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 500 }}>{r.name}</div>
+                {r.description && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{r.description}</div>
+                )}
+                <div style={{ marginTop: 4 }}>
+                  <RatingStars value={r.ease_rating ?? null} label="Ease" />
+                  <RatingStars value={r.deliciousness_rating ?? null} label="Taste" />
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                <button className="btn-ghost" onClick={() => { setEditRecipe(r); setShowForm(true); }}>Edit</button>
+                <button className="btn-danger" onClick={() => setDeleteRecipeId(r.id)}>Delete</button>
+                <button
+                  className={stagedRecipeIds.has(r.id) ? 'btn-secondary' : 'btn-primary'}
+                  disabled={stagedRecipeIds.has(r.id)}
+                  onClick={() => handleStage(r.id)}
+                >
+                  {stagedRecipeIds.has(r.id) ? 'Staged' : 'Stage'}
+                </button>
+              </div>
             </div>
-            <button className="btn-ghost" onClick={() => { setEditRecipe(r); setShowForm(true); }}>Edit</button>
-            <button className="btn-danger" onClick={() => setDeleteRecipeId(r.id)}>Delete</button>
-            <button
-              className={stagedRecipeIds.has(r.id) ? 'btn-secondary' : 'btn-primary'}
-              disabled={stagedRecipeIds.has(r.id)}
-              onClick={() => handleStage(r.id)}
-            >
-              {stagedRecipeIds.has(r.id) ? 'Staged' : 'Stage'}
-            </button>
           </div>
         ))}
         {filtered.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No recipes yet.</p>}
