@@ -11,9 +11,9 @@ export default function App() {
 
   return (
     <AppShell tab={tab} setTab={setTab}>
-      {tab === 'plan' && <PanelStaging />}
-      {tab === 'grocery' && <PanelGrocery />}
-      {tab === 'library' && <LibraryPanel />}
+      <div style={{ display: tab === 'plan' ? 'block' : 'none' }}><PanelStaging /></div>
+      <div style={{ display: tab === 'grocery' ? 'block' : 'none' }}><PanelGrocery /></div>
+      <div style={{ display: tab === 'library' ? 'block' : 'none' }}><LibraryPanel /></div>
     </AppShell>
   );
 }
