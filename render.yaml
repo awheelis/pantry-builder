@@ -2,7 +2,7 @@ services:
   - type: web
     name: pantry-builder
     env: node
-    buildCommand: npm install --include=dev && npm install --include=dev --prefix client && npm install --include=dev --prefix server && npm run build
+    buildCommand: NODE_ENV=development npm install && NODE_ENV=development npm install --prefix client && NODE_ENV=development npm install --prefix server && npm run build
     startCommand: node server/dist/index.js
     envVars:
       - key: NODE_ENV
