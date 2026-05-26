@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { GroceryItem } from '../types';
+import type { GroceryItem, CustomGroceryItem } from '../types';
 
 export const getGrocery = (params?: { category?: string; store?: string }) => {
   const q = new URLSearchParams(
@@ -13,3 +13,15 @@ export const rebuildGrocery = () =>
 
 export const togglePurchase = (id: number) =>
   apiFetch<GroceryItem>(`/api/grocery/${id}/purchase`, { method: 'PATCH' });
+
+export const getCustomItems = () =>
+  apiFetch<CustomGroceryItem[]>('/api/grocery/custom');
+
+export const addCustomItem = (name: string) =>
+  apiFetch<CustomGroceryItem>('/api/grocery/custom', { method: 'POST', body: JSON.stringify({ name }) });
+
+export const toggleCustomPurchase = (id: number) =>
+  apiFetch<CustomGroceryItem>(`/api/grocery/custom/${id}/purchase`, { method: 'PATCH' });
+
+export const deleteCustomItem = (id: number) =>
+  apiFetch<void>(`/api/grocery/custom/${id}`, { method: 'DELETE' });

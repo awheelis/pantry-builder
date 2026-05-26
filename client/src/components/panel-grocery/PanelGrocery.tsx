@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { GroceryItem, IngredientCategory, Store } from '../../types';
+import type { GroceryItem, CustomGroceryItem, IngredientCategory, Store } from '../../types';
 import { useGroceryStore } from '../../store/groceryStore';
 import { getStores } from '../../api/stores';
+import { getCustomItems, addCustomItem, toggleCustomPurchase, deleteCustomItem } from '../../api/grocery';
 
 const CATEGORIES: IngredientCategory[] = ['meat', 'produce', 'dairy', 'dry', 'canned', 'frozen', 'other'];
 
@@ -39,13 +40,34 @@ function GroceryRow({ item, onToggle }: { item: GroceryItem; onToggle: (id: numb
 export default function PanelGrocery() {
   const { items, fetch, toggle, categoryFilter, storeFilter, setCategoryFilter, setStoreFilter } = useGroceryStore();
   const [stores, setStores] = useState<Store[]>([]);
+  const [customItems, setCustomItems] = useState<CustomGroceryItem[]>([]);
+  const [newItemName, setNewItemName] = useState('');
 
   useEffect(() => {
     fetch();
     getStores().then(setStores);
+    getCustomItems().then(setCustomItems);
   }, []);
 
   useEffect(() => { fetch(); }, [categoryFilter, storeFilter]);
+
+  async function handleAddCustom(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newItemName.trim()) return;
+    const item = await addCustomItem(newItemName);
+    setCustomItems(prev => [...prev, item]);
+    setNewItemName('');
+  }
+
+  async function handleToggleCustom(id: number) {
+    const updated = await toggleCustomPurchase(id);
+    setCustomItems(prev => prev.map(i => i.id === id ? updated : i));
+  }
+
+  async function handleDeleteCustom(id: number) {
+    await deleteCustomItem(id);
+    setCustomItems(prev => prev.filter(i => i.id !== id));
+  }
 
   const grouped = CATEGORIES.reduce<Record<string, GroceryItem[]>>((acc, cat) => {
     const group = items.filter(i => i.category === cat);
@@ -107,6 +129,61 @@ export default function PanelGrocery() {
           ))}
         </div>
       ))}
+
+      {/* Custom / extra items — always shown */}
+      <div className="card" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+        <div style={{
+          padding: '8px 14px',
+          background: 'var(--bg)',
+          borderBottom: '1px solid var(--border)',
+          fontWeight: 600,
+          fontSize: 13,
+          color: 'var(--primary)',
+        }}>
+          Other Items
+        </div>
+        {customItems.map(item => (
+          <div
+            key={item.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '10px 14px',
+              borderBottom: '1px solid var(--border)',
+              opacity: item.is_purchased ? 0.5 : 1,
+              background: item.is_purchased ? '#f9f9f9' : 'var(--surface)',
+              transition: 'opacity 0.2s',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={item.is_purchased === 1}
+              onChange={() => handleToggleCustom(item.id)}
+              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--primary)' }}
+            />
+            <span style={{ flex: 1, fontWeight: 500, textDecoration: item.is_purchased ? 'line-through' : 'none' }}>
+              {item.name}
+            </span>
+            <button
+              className="btn-ghost"
+              onClick={() => handleDeleteCustom(item.id)}
+              style={{ fontSize: 16, padding: '2px 6px', color: 'var(--text-muted)' }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <form onSubmit={handleAddCustom} style={{ display: 'flex', gap: 8, padding: '10px 14px' }}>
+          <input
+            value={newItemName}
+            onChange={e => setNewItemName(e.target.value)}
+            placeholder="Add an item…"
+            style={{ flex: 1, marginBottom: 0 }}
+          />
+          <button type="submit" className="btn-primary" style={{ flexShrink: 0 }}>Add</button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import ingredientsRouter from './routes/ingredients';
 import recipesRouter from './routes/recipes';
 import stagedRouter from './routes/staged';
 import groceryRouter from './routes/grocery';
+import customGroceryRouter from './routes/customGrocery';
 
 export function createApp() {
   const app = express();
@@ -16,6 +17,7 @@ export function createApp() {
   app.use('/api/ingredients', ingredientsRouter);
   app.use('/api/recipes', recipesRouter);
   app.use('/api/staged', stagedRouter);
+  app.use('/api/grocery/custom', customGroceryRouter);
   app.use('/api/grocery', groceryRouter);
   if (process.env.NODE_ENV === 'production') {
     const clientDist = path.join(__dirname, '../../client/dist');

@@ -63,6 +63,12 @@ export interface GroceryItem {
   store_name: string | null;
 }
 
+export interface CustomGroceryItem {
+  id: number;
+  name: string;
+  is_purchased: 0 | 1;
+}
+
 export interface BreakdownIngredient {
   ri_id: number;
   ingredient_id: number;

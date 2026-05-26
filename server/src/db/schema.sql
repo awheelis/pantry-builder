@@ -47,3 +47,9 @@ CREATE TABLE IF NOT EXISTS grocery_items (
 CREATE INDEX IF NOT EXISTS idx_ri_recipe     ON recipe_ingredients(recipe_id);
 CREATE INDEX IF NOT EXISTS idx_ri_ingredient ON recipe_ingredients(ingredient_id);
 CREATE INDEX IF NOT EXISTS idx_grocery_ingr  ON grocery_items(ingredient_id);
+
+CREATE TABLE IF NOT EXISTS custom_grocery_items (
+  id           SERIAL PRIMARY KEY,
+  name         TEXT NOT NULL,
+  is_purchased SMALLINT NOT NULL DEFAULT 0
+);
