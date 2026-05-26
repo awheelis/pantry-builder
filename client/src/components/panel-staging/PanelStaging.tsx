@@ -76,14 +76,14 @@ export default function PanelStaging() {
           <h2 style={{ fontSize: 15, fontWeight: 700 }}>Recipe Archive</h2>
           <button className="btn-primary" onClick={() => { setEditRecipe(null); setShowForm(true); }}>+ New Recipe</button>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search recipes…"
-            style={{ flex: 1, marginBottom: 0 }}
+            style={{ flex: '1 1 140px', minWidth: 0, marginBottom: 0 }}
           />
-          <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} style={{ flexShrink: 0 }}>
+          <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} style={{ flex: '0 0 auto', width: 110 }}>
             <option value="name">A–Z</option>
             <option value="ease">Ease ★</option>
             <option value="taste">Taste ★</option>
