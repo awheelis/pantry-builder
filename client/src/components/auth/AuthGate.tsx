@@ -43,13 +43,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     setSubmitting(true);
     try {
       if (mode === 'forgot') {
-        await fetch('/api/auth/forgot-password', {
+        const res = await fetch('/api/auth/forgot-password', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
         });
-        setMessage('Check your email for a reset link.');
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError((data as { error?: string }).error ?? 'Something went wrong. Please try again.');
+          return;
+        }
+        setMessage('If that email is registered, you'll receive a reset link shortly.');
         return;
       }
 

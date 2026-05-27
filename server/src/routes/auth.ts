@@ -87,7 +87,7 @@ router.post('/forgot-password', async (req, res, next) => {
     }
     // Always return ok to avoid email enumeration
     res.json({ ok: true });
-  } catch (e) { next(e); }
+  } catch (e) { console.error('[forgot-password]', e); next(e); }
 });
 
 router.post('/reset-password', async (req, res, next) => {
