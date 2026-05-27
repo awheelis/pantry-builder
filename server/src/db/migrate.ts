@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS custom_grocery_items (
   id           SERIAL PRIMARY KEY,
   name         TEXT NOT NULL,
   is_purchased SMALLINT NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token      TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN NOT NULL DEFAULT FALSE
 )
 `;
 
