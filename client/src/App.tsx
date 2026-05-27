@@ -24,7 +24,7 @@ export default function App() {
       <AppShell tab={tab} setTab={setTab}>
         <div style={{ display: tab === 'plan' ? 'block' : 'none' }}><PanelStaging /></div>
         <div style={{ display: tab === 'grocery' ? 'block' : 'none' }}><PanelGrocery /></div>
-        <div style={{ display: tab === 'library' ? 'block' : 'none' }}><LibraryPanel /></div>
+        {tab === 'library' && <LibraryPanel />}
       </AppShell>
     </AuthGate>
   );
