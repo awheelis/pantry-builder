@@ -1,8 +1,9 @@
 import pool from '../db/connection';
 
-export async function rebuildGroceryList() {
+export async function rebuildGroceryList(userId: number) {
   const { rows: staged } = await pool.query(
-    'SELECT id, recipe_id, scale_factor FROM staged_recipes'
+    'SELECT id, recipe_id, scale_factor FROM staged_recipes WHERE user_id = $1',
+    [userId]
   );
 
   const totals = new Map<number, { total_amount: number; unit: string }>();
@@ -29,20 +30,20 @@ export async function rebuildGroceryList() {
   try {
     await client.query('BEGIN');
     if (totals.size === 0) {
-      await client.query('DELETE FROM grocery_items');
+      await client.query('DELETE FROM grocery_items WHERE user_id = $1', [userId]);
     } else {
       for (const [ingredient_id, { total_amount, unit }] of totals) {
         await client.query(`
-          INSERT INTO grocery_items (ingredient_id, total_amount, unit, is_purchased)
-          VALUES ($1, $2, $3, 0)
-          ON CONFLICT (ingredient_id) DO UPDATE SET
+          INSERT INTO grocery_items (ingredient_id, total_amount, unit, is_purchased, user_id)
+          VALUES ($1, $2, $3, 0, $4)
+          ON CONFLICT (user_id, ingredient_id) DO UPDATE SET
             total_amount = EXCLUDED.total_amount,
             unit = EXCLUDED.unit
-        `, [ingredient_id, total_amount, unit]);
+        `, [ingredient_id, total_amount, unit, userId]);
       }
       await client.query(
-        'DELETE FROM grocery_items WHERE NOT (ingredient_id = ANY($1))',
-        [Array.from(totals.keys())]
+        'DELETE FROM grocery_items WHERE user_id = $1 AND NOT (ingredient_id = ANY($2))',
+        [userId, Array.from(totals.keys())]
       );
     }
     await client.query('COMMIT');
@@ -54,9 +55,9 @@ export async function rebuildGroceryList() {
   }
 }
 
-export async function getGroceryList(category?: string, store?: string) {
-  const params: (string | number)[] = [];
-  let idx = 1;
+export async function getGroceryList(userId: number, category?: string, store?: string) {
+  const params: (string | number)[] = [userId];
+  let idx = 2;
   let sql = `
     SELECT
       gi.id,
@@ -72,7 +73,7 @@ export async function getGroceryList(category?: string, store?: string) {
     FROM grocery_items gi
     JOIN ingredients i ON i.id = gi.ingredient_id
     LEFT JOIN stores s ON s.id = i.suggested_purchase_location
-    WHERE 1=1
+    WHERE gi.user_id = $1
   `;
   if (category) { sql += ` AND i.category = $${idx++}`; params.push(category); }
   if (store)    { sql += ` AND s.id = $${idx++}`; params.push(Number(store)); }
@@ -81,12 +82,12 @@ export async function getGroceryList(category?: string, store?: string) {
   return rows;
 }
 
-export async function togglePurchased(id: number) {
+export async function togglePurchased(id: number, userId: number) {
   const { rows } = await pool.query(`
     UPDATE grocery_items
     SET is_purchased = CASE WHEN is_purchased = 1 THEN 0 ELSE 1 END
-    WHERE id = $1
+    WHERE id = $1 AND user_id = $2
     RETURNING *
-  `, [id]);
+  `, [id, userId]);
   return rows[0] ?? null;
 }

@@ -5,12 +5,12 @@ import * as RI from '../models/RecipeIngredient';
 const router = Router();
 
 router.get('/', async (req, res, next) => {
-  try { res.json(await Recipe.listRecipes(req.query.q as string | undefined)); } catch (e) { next(e); }
+  try { res.json(await Recipe.listRecipes(req.user!.id, req.query.q as string | undefined)); } catch (e) { next(e); }
 });
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const recipe = await Recipe.getRecipe(Number(req.params.id));
+    const recipe = await Recipe.getRecipe(Number(req.params.id), req.user!.id);
     if (!recipe) return res.status(404).json({ error: 'not found' });
     const ingredients = await RI.listRecipeIngredients(Number(req.params.id));
     res.json({ ...recipe, ingredients });
@@ -21,7 +21,7 @@ router.post('/', async (req, res, next) => {
   try {
     const { name, description, serving_size, ease_rating, deliciousness_rating } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
-    res.status(201).json(await Recipe.createRecipe({
+    res.status(201).json(await Recipe.createRecipe(req.user!.id, {
       name: name.trim(),
       description: description ?? null,
       serving_size: Number(serving_size) || 1,
@@ -38,13 +38,13 @@ router.put('/:id', async (req, res, next) => {
       Object.entries(req.body).filter(([k]) => allowed.includes(k))
     );
     if (Object.keys(data).length === 0) return res.status(400).json({ error: 'no valid fields' });
-    res.json(await Recipe.updateRecipe(Number(req.params.id), data));
+    res.json(await Recipe.updateRecipe(Number(req.params.id), req.user!.id, data));
   } catch (e) { next(e); }
 });
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    await Recipe.deleteRecipe(Number(req.params.id));
+    await Recipe.deleteRecipe(Number(req.params.id), req.user!.id);
     res.status(204).send();
   } catch (e) { next(e); }
 });

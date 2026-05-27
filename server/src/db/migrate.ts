@@ -1,6 +1,13 @@
 import pool from './connection';
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS users (
+  id            SERIAL PRIMARY KEY,
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS stores (
   id   SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE
@@ -51,9 +58,25 @@ CREATE TABLE IF NOT EXISTS custom_grocery_items (
 )
 `;
 
+const MIGRATIONS = `
+ALTER TABLE stores               ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE ingredients          ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE recipes              ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE staged_recipes       ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE grocery_items        ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE custom_grocery_items ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE grocery_items DROP CONSTRAINT IF EXISTS grocery_items_ingredient_id_key;
+ALTER TABLE grocery_items ADD CONSTRAINT IF NOT EXISTS grocery_items_user_ingredient_unique UNIQUE (user_id, ingredient_id);
+`;
+
 export async function migrate() {
   const statements = SCHEMA.split(';').map(s => s.trim()).filter(Boolean);
   for (const sql of statements) {
+    await pool.query(sql);
+  }
+  // Idempotent column/constraint additions for the multi-user migration
+  const alterStatements = MIGRATIONS.split(';').map(s => s.trim()).filter(Boolean);
+  for (const sql of alterStatements) {
     await pool.query(sql);
   }
   console.log('[db] schema applied');

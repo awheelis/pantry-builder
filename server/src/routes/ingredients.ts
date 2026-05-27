@@ -6,7 +6,7 @@ const router = Router();
 router.get('/', async (req, res, next) => {
   try {
     const { category, store } = req.query as { category?: string; store?: string };
-    res.json(await Ingredient.listIngredients(category, store));
+    res.json(await Ingredient.listIngredients(req.user!.id, category, store));
   } catch (e) { next(e); }
 });
 
@@ -16,7 +16,7 @@ router.post('/', async (req, res, next) => {
     if (!name?.trim() || !category || !unit?.trim()) {
       return res.status(400).json({ error: 'name, category, and unit are required' });
     }
-    res.status(201).json(await Ingredient.createIngredient({
+    res.status(201).json(await Ingredient.createIngredient(req.user!.id, {
       name: name.trim(),
       category,
       unit: unit.trim(),
@@ -32,13 +32,13 @@ router.put('/:id', async (req, res, next) => {
       Object.entries(req.body).filter(([k]) => allowed.includes(k))
     );
     if (Object.keys(data).length === 0) return res.status(400).json({ error: 'no valid fields' });
-    res.json(await Ingredient.updateIngredient(Number(req.params.id), data));
+    res.json(await Ingredient.updateIngredient(Number(req.params.id), req.user!.id, data));
   } catch (e) { next(e); }
 });
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    await Ingredient.deleteIngredient(Number(req.params.id));
+    await Ingredient.deleteIngredient(Number(req.params.id), req.user!.id);
     res.status(204).send();
   } catch (e) { next(e); }
 });
