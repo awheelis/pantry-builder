@@ -54,7 +54,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           setError((data as { error?: string }).error ?? 'Something went wrong. Please try again.');
           return;
         }
-        setMessage('If that email is registered, you'll receive a reset link shortly.');
+        setMessage("If that email is registered, you'll receive a reset link shortly.");
         return;
       }
 
