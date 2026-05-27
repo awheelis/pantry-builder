@@ -74,7 +74,9 @@ export default function PanelGrocery() {
   }
 
   const grouped = CATEGORIES.reduce<Record<string, GroceryItem[]>>((acc, cat) => {
-    const group = items.filter(i => i.category === cat);
+    const group = items
+      .filter(i => i.category === cat)
+      .sort((a, b) => (a.is_purchased ?? 0) - (b.is_purchased ?? 0));
     if (group.length > 0) acc[cat] = group;
     return acc;
   }, {});

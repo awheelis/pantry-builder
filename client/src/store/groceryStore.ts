@@ -30,9 +30,9 @@ export const useGroceryStore = create<GroceryState>((set, get) => ({
   },
 
   toggle: async (id) => {
-    const item = await api.togglePurchase(id);
+    const updated = await api.togglePurchase(id);
     set((s) => ({
-      items: s.items.map((i) => (i.id === id ? (item as GroceryItem) : i)),
+      items: s.items.map((i) => (i.id === id ? { ...i, is_purchased: updated.is_purchased } : i)),
     }));
   },
 
