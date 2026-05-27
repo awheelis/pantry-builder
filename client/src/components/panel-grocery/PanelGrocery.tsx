@@ -3,6 +3,7 @@ import type { GroceryItem, CustomGroceryItem, IngredientCategory, Store } from '
 import { useGroceryStore } from '../../store/groceryStore';
 import { getStores } from '../../api/stores';
 import { getCustomItems, addCustomItem, toggleCustomPurchase, deleteCustomItem } from '../../api/grocery';
+import IngredientPickerSelect from '../common/IngredientPickerSelect';
 
 const CATEGORIES: IngredientCategory[] = ['meat', 'produce', 'dairy', 'dry', 'canned', 'frozen', 'other'];
 
@@ -41,7 +42,8 @@ export default function PanelGrocery() {
   const { items, fetch, toggle, categoryFilter, storeFilter, setCategoryFilter, setStoreFilter } = useGroceryStore();
   const [stores, setStores] = useState<Store[]>([]);
   const [customItems, setCustomItems] = useState<CustomGroceryItem[]>([]);
-  const [newItemName, setNewItemName] = useState('');
+  const [selectedIngId, setSelectedIngId] = useState('');
+  const [selectedIngName, setSelectedIngName] = useState('');
 
   useEffect(() => {
     fetch();
@@ -53,10 +55,12 @@ export default function PanelGrocery() {
 
   async function handleAddCustom(e: React.FormEvent) {
     e.preventDefault();
-    if (!newItemName.trim()) return;
-    const item = await addCustomItem(newItemName);
+    const name = selectedIngName.trim();
+    if (!name) return;
+    const item = await addCustomItem(name);
     setCustomItems(prev => [...prev, item]);
-    setNewItemName('');
+    setSelectedIngId('');
+    setSelectedIngName('');
   }
 
   async function handleToggleCustom(id: number) {
@@ -174,14 +178,20 @@ export default function PanelGrocery() {
             </button>
           </div>
         ))}
-        <form onSubmit={handleAddCustom} style={{ display: 'flex', gap: 8, padding: '10px 14px' }}>
-          <input
-            value={newItemName}
-            onChange={e => setNewItemName(e.target.value)}
-            placeholder="Add an item…"
-            style={{ flex: 1, marginBottom: 0 }}
+        <form onSubmit={handleAddCustom} style={{ display: 'flex', gap: 8, padding: '10px 14px', alignItems: 'flex-end' }}>
+          <IngredientPickerSelect
+            value={selectedIngId}
+            onChange={(id, ing) => {
+              setSelectedIngId(id);
+              setSelectedIngName(ing?.name ?? '');
+            }}
+            onIngredientCreated={(ing) => {
+              setSelectedIngId(String(ing.id));
+              setSelectedIngName(ing.name);
+            }}
+            style={{ flex: 1 }}
           />
-          <button type="submit" className="btn-primary" style={{ flexShrink: 0 }}>Add</button>
+          <button type="submit" className="btn-primary" style={{ flexShrink: 0 }} disabled={!selectedIngName}>Add</button>
         </form>
       </div>
     </div>
