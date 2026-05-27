@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { RecipeIngredient, Ingredient, StagedRecipe } from '../../types';
+import type { RecipeIngredient, StagedRecipe } from '../../types';
 import * as recipesApi from '../../api/recipes';
-import * as ingredientsApi from '../../api/ingredients';
+import { useIngredientStore } from '../../store/ingredientStore';
 import { useGroceryStore } from '../../store/groceryStore';
 
 interface Props {
@@ -11,12 +11,12 @@ interface Props {
 
 export default function IngredientSubstitutor({ staged, onClose }: Props) {
   const [ris, setRis] = useState<RecipeIngredient[]>([]);
-  const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
+  const { ingredients: allIngredients, fetch: fetchIngredients } = useIngredientStore();
   const fetchGrocery = useGroceryStore(s => s.fetch);
 
   useEffect(() => {
     recipesApi.getRecipeIngredients(staged.recipe_id).then(setRis);
-    ingredientsApi.getIngredients().then(setAllIngredients);
+    fetchIngredients();
   }, [staged.recipe_id]);
 
   async function substitute(riId: number, newIngId: number) {

@@ -1,33 +1,24 @@
-import { useState, useEffect } from 'react';
-import type { Store } from '../../types';
-import * as api from '../../api/stores';
+import { useEffect, useState } from 'react';
+import { useStoreStore } from '../../store/storeStore';
 
 export default function StoreManager() {
-  const [stores, setStores] = useState<Store[]>([]);
+  const { stores, fetch, create, update, remove } = useStoreStore();
   const [newName, setNewName] = useState('');
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
 
-  async function load() { setStores(await api.getStores()); }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { fetch(); }, []);
 
   async function add() {
     if (!newName.trim()) return;
-    await api.createStore(newName.trim());
+    await create(newName.trim());
     setNewName('');
-    load();
   }
 
   async function save(id: number) {
     if (!editName.trim()) return;
-    await api.updateStore(id, editName.trim());
+    await update(id, editName.trim());
     setEditId(null);
-    load();
-  }
-
-  async function remove(id: number) {
-    await api.deleteStore(id);
-    load();
   }
 
   return (

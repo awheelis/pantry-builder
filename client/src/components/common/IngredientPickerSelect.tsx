@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { Ingredient, IngredientCategory } from '../../types';
-import * as ingredientsApi from '../../api/ingredients';
+import { useIngredientStore } from '../../store/ingredientStore';
 
 const CATEGORIES: IngredientCategory[] = ['meat', 'produce', 'dairy', 'dry', 'canned', 'frozen', 'other'];
 const CREATE_SENTINEL = '__create__';
@@ -15,19 +15,17 @@ interface Props {
 }
 
 export default function IngredientPickerSelect({ value, onChange, onIngredientCreated, ingredients: propIngredients, label, style }: Props) {
-  const [internalIngredients, setInternalIngredients] = useState<Ingredient[]>([]);
+  const { ingredients: storeIngredients, fetch, create } = useIngredientStore();
   const [creating, setCreating] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createUnit, setCreateUnit] = useState('');
   const [createCategory, setCreateCategory] = useState<IngredientCategory>('other');
   const [createError, setCreateError] = useState('');
 
-  const list = propIngredients ?? internalIngredients;
+  const list = propIngredients ?? storeIngredients;
 
   useEffect(() => {
-    if (!propIngredients) {
-      ingredientsApi.getIngredients().then(setInternalIngredients);
-    }
+    if (!propIngredients) fetch();
   }, []);
 
   async function handleCreate() {
@@ -36,16 +34,12 @@ export default function IngredientPickerSelect({ value, onChange, onIngredientCr
       return;
     }
     setCreateError('');
-    const created = await ingredientsApi.createIngredient({
+    const created = await create({
       name: createName.trim(),
       category: createCategory,
       unit: createUnit.trim(),
       suggested_purchase_location: null,
     });
-    if (!propIngredients) {
-      const updated = await ingredientsApi.getIngredients();
-      setInternalIngredients(updated);
-    }
     setCreating(false);
     setCreateName('');
     setCreateUnit('');

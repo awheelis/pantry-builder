@@ -1,21 +1,21 @@
-import { useState, useEffect } from 'react';
-import type { Ingredient, IngredientCategory, Store } from '../../types';
-import * as api from '../../api/ingredients';
-import * as storesApi from '../../api/stores';
+import { useEffect, useState } from 'react';
+import type { Ingredient, IngredientCategory } from '../../types';
+import { useIngredientStore } from '../../store/ingredientStore';
+import { useStoreStore } from '../../store/storeStore';
 
 const CATEGORIES: IngredientCategory[] = ['meat', 'produce', 'dairy', 'dry', 'canned', 'frozen', 'other'];
 
 function IngredientForm({
   initial,
-  stores,
   onSave,
   onCancel,
 }: {
   initial?: Ingredient;
-  stores: Store[];
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const { stores } = useStoreStore();
+  const { create, update } = useIngredientStore();
   const [name, setName] = useState(initial?.name ?? '');
   const [category, setCategory] = useState<IngredientCategory>(initial?.category ?? 'other');
   const [unit, setUnit] = useState(initial?.unit ?? '');
@@ -27,9 +27,9 @@ function IngredientForm({
     setError('');
     const data = { name: name.trim(), category, unit: unit.trim(), suggested_purchase_location: store ? Number(store) : null };
     if (initial?.id) {
-      await api.updateIngredient(initial.id, data);
+      await update(initial.id, data);
     } else {
-      await api.createIngredient(data);
+      await create(data);
     }
     onSave();
   }
@@ -69,26 +69,18 @@ function IngredientForm({
 }
 
 export default function IngredientLibrary() {
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
+  const { ingredients, fetch: fetchIngredients, remove } = useIngredientStore();
+  const { fetch: fetchStores } = useStoreStore();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
-  async function load() {
-    const [ings, ss] = await Promise.all([api.getIngredients(), storesApi.getStores()]);
-    setIngredients(ings);
-    setStores(ss);
-  }
-
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    fetchIngredients();
+    fetchStores();
+  }, []);
 
   const filtered = ingredients.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
-
-  async function remove(id: number) {
-    await api.deleteIngredient(id);
-    load();
-  }
 
   return (
     <div>
@@ -97,7 +89,7 @@ export default function IngredientLibrary() {
         <button className="btn-primary" onClick={() => { setShowForm(true); setEditId(null); }}>+ New Ingredient</button>
       </div>
       {showForm && editId === null && (
-        <IngredientForm stores={stores} onSave={() => { setShowForm(false); load(); }} onCancel={() => setShowForm(false)} />
+        <IngredientForm onSave={() => setShowForm(false)} onCancel={() => setShowForm(false)} />
       )}
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ingredients…" style={{ marginBottom: 12 }} />
       {filtered.map(ing => (
@@ -105,8 +97,7 @@ export default function IngredientLibrary() {
           {editId === ing.id ? (
             <IngredientForm
               initial={ing}
-              stores={stores}
-              onSave={() => { setEditId(null); load(); }}
+              onSave={() => setEditId(null)}
               onCancel={() => setEditId(null)}
             />
           ) : (

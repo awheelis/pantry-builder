@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { Recipe, RecipeIngredient, Ingredient } from '../../types';
+import type { Recipe, RecipeIngredient } from '../../types';
 import * as recipesApi from '../../api/recipes';
-import * as ingredientsApi from '../../api/ingredients';
+import { useIngredientStore } from '../../store/ingredientStore';
 import RatingStars from '../common/RatingStars';
 import IngredientPickerSelect from '../common/IngredientPickerSelect';
 
@@ -18,12 +18,12 @@ export default function RecipeForm({ recipe, onSave, onClose }: Props) {
   const [easeRating, setEaseRating] = useState<number | null>(recipe?.ease_rating ?? null);
   const [deliciousnessRating, setDeliciousnessRating] = useState<number | null>(recipe?.deliciousness_rating ?? null);
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
-  const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
+  const { ingredients: allIngredients, fetch: fetchIngredients } = useIngredientStore();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    ingredientsApi.getIngredients().then(setAllIngredients);
+    fetchIngredients();
     if (recipe?.id) {
       recipesApi.getRecipeIngredients(recipe.id).then(setIngredients);
     }
@@ -142,13 +142,11 @@ export default function RecipeForm({ recipe, onSave, onClose }: Props) {
         <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
           <IngredientPickerSelect
             value={newIngId}
-            ingredients={allIngredients}
             onChange={(id, ing) => {
               setNewIngId(id);
               if (ing) setNewUnit(ing.unit);
             }}
             onIngredientCreated={(ing) => {
-              setAllIngredients(prev => [...prev, ing]);
               setNewIngId(String(ing.id));
               setNewUnit(ing.unit);
             }}

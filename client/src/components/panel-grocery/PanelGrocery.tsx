@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { GroceryItem, CustomGroceryItem, IngredientCategory, Store } from '../../types';
+import type { GroceryItem, CustomGroceryItem, IngredientCategory } from '../../types';
 import { useGroceryStore } from '../../store/groceryStore';
-import { getStores } from '../../api/stores';
+import { useStoreStore } from '../../store/storeStore';
 import { getCustomItems, addCustomItem, toggleCustomPurchase, deleteCustomItem } from '../../api/grocery';
 import IngredientPickerSelect from '../common/IngredientPickerSelect';
 
@@ -40,14 +40,14 @@ function GroceryRow({ item, onToggle }: { item: GroceryItem; onToggle: (id: numb
 
 export default function PanelGrocery() {
   const { items, fetch, toggle, categoryFilter, storeFilter, setCategoryFilter, setStoreFilter } = useGroceryStore();
-  const [stores, setStores] = useState<Store[]>([]);
+  const { stores, fetch: fetchStores } = useStoreStore();
   const [customItems, setCustomItems] = useState<CustomGroceryItem[]>([]);
   const [selectedIngId, setSelectedIngId] = useState('');
   const [selectedIngName, setSelectedIngName] = useState('');
 
   useEffect(() => {
     fetch();
-    getStores().then(setStores);
+    fetchStores();
     getCustomItems().then(setCustomItems);
   }, []);
 
