@@ -8,6 +8,9 @@
     "build": "npm run build --prefix client && npm run build --prefix server",
     "start": "node server/dist/index.js"
   },
+  "dependencies": {
+    "@vercel/node": "^3.0.0"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
