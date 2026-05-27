@@ -10,11 +10,11 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS stores (
   id   SERIAL PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE
+  name TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ingredients (
   id                          SERIAL PRIMARY KEY,
-  name                        TEXT NOT NULL UNIQUE,
+  name                        TEXT NOT NULL,
   category                    TEXT NOT NULL CHECK (category IN ('meat','produce','dairy','dry','canned','frozen','other')),
   unit                        TEXT NOT NULL,
   suggested_purchase_location INTEGER REFERENCES stores(id) ON DELETE SET NULL
@@ -74,6 +74,10 @@ ALTER TABLE grocery_items        ADD COLUMN IF NOT EXISTS user_id INTEGER REFERE
 ALTER TABLE custom_grocery_items ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE grocery_items DROP CONSTRAINT IF EXISTS grocery_items_ingredient_id_key;
 ALTER TABLE grocery_items ADD CONSTRAINT IF NOT EXISTS grocery_items_user_ingredient_unique UNIQUE (user_id, ingredient_id);
+ALTER TABLE ingredients DROP CONSTRAINT IF EXISTS ingredients_name_key;
+ALTER TABLE ingredients ADD CONSTRAINT IF NOT EXISTS ingredients_user_name_unique UNIQUE (user_id, name);
+ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_name_key;
+ALTER TABLE stores ADD CONSTRAINT IF NOT EXISTS stores_user_name_unique UNIQUE (user_id, name);
 `;
 
 export async function migrate() {
