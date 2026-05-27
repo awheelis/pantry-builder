@@ -31,7 +31,7 @@ function GroceryRow({ item, onToggle }: { item: GroceryItem; onToggle: (id: numb
         {item.ingredient_name}
       </span>
       <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-        {item.total_amount % 1 === 0 ? item.total_amount : item.total_amount.toFixed(2)} {item.unit}
+        {Number(item.total_amount) % 1 === 0 ? Number(item.total_amount) : Number(item.total_amount).toFixed(2)} {item.unit}
       </span>
       {item.store_name && <span className="badge badge-store">{item.store_name}</span>}
     </div>
